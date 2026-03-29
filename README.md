@@ -4,9 +4,9 @@ A minimal ComfyUI extension that lets you mark any node to **discard its output 
 
 ## Why?
 
-By default, ComfyUI caches every node's output so that re-running a prompt can skip already-computed nodes. This is great for iteration speed, but some intermediate outputs are enormous and only needed once. Holding them in cache wastes RAM/VRAM for no benefit.
+By default, ComfyUI caches every node's output during one prompt. If you use `--cache-ram` or `--cache-lru`, ComfyUI only clean-up cache after it finishes current prompt. But in large workflows, some intermediate outputs are enormous and only needed once. Holding them in cache wastes RAM/VRAM for no benefit, especially for unified memory devices like DGX Spark.
 
-With this extension, you right-click a node → toggle **"Discard Output After Use"** → and that node's output is freed as soon as all its downstream consumers have finished executing.
+With this extension, you right-click a node → toggle **"Discard Output After Use"** → and that node's output is freed **immediately** after all its downstream consumers have finished executing.
 
 **Trade-off**: Nodes with this toggle enabled will always re-execute on subsequent runs (since their output is never cached). This is the intended behavior. 
 
@@ -24,7 +24,7 @@ This extension requires a small patch to ComfyUI's core execution engine (2 file
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/your-username/comfyui_discard_output.git
+git clone https://github.com/redstonewhite/ComfyUI-OneShotOutputs.git
 ```
 
 ### Step 2: Apply the core patches
