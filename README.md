@@ -35,7 +35,16 @@ Two files in ComfyUI need minor modifications:
 
 #### `comfy_execution/graph.py`
 
-In the `ExecutionList.__init__` method, add `self.discard_output_nodes = set()`:
+Three changes are needed in this file.
+
+**1.** Add imports at the top of the file:
+
+```python
+import gc
+import torch
+```
+
+**2.** In the `ExecutionList.__init__` method, add `self.discard_output_nodes = set()`:
 
 ```python
 # In class ExecutionList(TopologicalSort):
@@ -48,7 +57,7 @@ def __init__(self, dynprompt, output_cache):
     self.discard_output_nodes = set()       # <-- ADD THIS LINE
 ```
 
-In `ExecutionList.get_cache`, guard the write-back:
+**3.** In `ExecutionList.get_cache`, guard the write-back:
 
 ```python
 def get_cache(self, from_node_id, to_node_id):
@@ -61,6 +70,38 @@ def get_cache(self, from_node_id, to_node_id):
     if from_node_id not in self.discard_output_nodes:    # <-- ADD THIS LINE
         self.output_cache.set_local(from_node_id, value)
     return value
+```
+
+**4.** Replace `complete_node_execution` to actively free discard-node outputs and trigger GC:
+
+```python
+def complete_node_execution(self):
+    node_id = self.staged_node_id
+    self.pop_node(node_id)
+    # Collect discard nodes this node consumed from before popping
+    consumed_discard_nodes = []
+    if node_id in self.execution_cache:
+        for from_id in self.execution_cache[node_id]:
+            if from_id in self.discard_output_nodes:
+                consumed_discard_nodes.append(from_id)
+    self.execution_cache.pop(node_id, None)
+    self.execution_cache_listeners.pop(node_id, None)
+    # For each discard node we consumed, remove ourselves from its listener set.
+    # When a discard node has no remaining listeners, all consumers are done —
+    # scrub any stale refs and free memory.
+    needs_cleanup = False
+    for discard_id in consumed_discard_nodes:
+        if discard_id in self.execution_cache_listeners:
+            self.execution_cache_listeners[discard_id].discard(node_id)
+            if len(self.execution_cache_listeners[discard_id]) == 0:
+                del self.execution_cache_listeners[discard_id]
+                self.discard_output_nodes.discard(discard_id)
+                needs_cleanup = True
+    if needs_cleanup:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    self.staged_node_id = None
 ```
 
 #### `execution.py`
