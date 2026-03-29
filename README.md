@@ -2,6 +2,8 @@
 
 A minimal ComfyUI extension that lets you mark any node to **discard its output from cache immediately after all downstream nodes have consumed it**. This is useful for nodes that produce massive intermediate data (large latents, high-res images, video frames, etc.) Once processed by the next node, the intermediate data is freed from memory instead of being held in ComfyUI's global output cache.
 
+It is different from `--cache-none`, as nodes not marked will preserve their output in cache. This is useful when you have a massive workflow with multiple intermediate steps.
+
 ## Why?
 
 By default, ComfyUI caches every node's output during one prompt. If you use `--cache-ram` or `--cache-lru`, ComfyUI only clean-up cache after it finishes current prompt. But in large workflows, some intermediate outputs are enormous and only needed once. Holding them in cache wastes RAM/VRAM for no benefit, especially for unified memory devices like DGX Spark.
