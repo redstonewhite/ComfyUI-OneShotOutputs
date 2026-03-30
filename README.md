@@ -14,7 +14,7 @@ With this extension, you right-click a node → toggle **"Discard Output After U
 
 ## How It Works
 
-- **Frontend**: Adds a right-click context menu toggle to every node that has outputs. The state is stored in `node.properties.discard_output` and persists with the workflow.
+- **Frontend**: Adds a right-click context menu toggle to every node that has outputs. The state is stored in `node.properties.discard_output` and persists with the workflow. When a node is marked to discard, a "⚡️One-Shot" badge will appear on the top-right corner of that node. This extension also provides a "One-Shot Relay" node under "utils", which helps improve memory efficiency by decoupling large intermediate outputs from downstream usage. By passing outputs through this node, the producing node can be finalized sooner, allowing its cache to be freed while smaller results are still retained for later use.
 - **Backend**: After a node executes, if `discard_output` is set, the output is passed to downstream nodes via the execution-scoped cache but **not** stored in the persistent global cache. Once all downstream consumers complete, the output has zero references and is garbage collected.
 - **Multiple outputs**: If a discard-output node feeds into 3 different downstream nodes, all 3 get the data. The output is only freed after the last consumer finishes.
 
@@ -72,7 +72,7 @@ def get_cache(self, from_node_id, to_node_id):
     return value
 ```
 
-**4.** Replace `complete_node_execution` to actively free discard-node outputs and trigger GC:
+**4.** (**Optional, if not working properly**) Replace `complete_node_execution` to actively free discard-node outputs and trigger GC:
 
 ```python
 def complete_node_execution(self):
